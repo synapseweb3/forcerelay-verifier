@@ -113,6 +113,8 @@ trait EthRpc {
         slot: H256,
         block: BlockTag,
     ) -> Result<String, Error>;
+    #[method(name = "getCoinbase")]
+    async fn get_coinbase(&self) -> Result<Address, Error>;
 }
 
 #[rpc(client, server, namespace = "net")]
@@ -280,6 +282,12 @@ impl EthRpcServer for RpcInner {
                 .await,
         )
     }
+
+    async fn get_coinbase(&self) -> Result<Address, Error> {
+        let node = self.node.read().await;
+        Ok(node.get_coinbase().unwrap())
+    }
+
     async fn get_logs(&self, filter: Filter) -> Result<Vec<Log>, Error> {
         let node = self.node.read().await;
         convert_err(node.get_logs(&filter).await)
