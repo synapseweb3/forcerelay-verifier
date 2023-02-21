@@ -43,7 +43,7 @@ impl<R: CkbRpc> ForcerelayClient<R> {
         let client = self.onchain_client().await?;
         if let Some(base_slot) = consensus.storage().get_base_beacon_header_slot()? {
             if let Some(tip_slot) = consensus.storage().get_tip_beacon_header_slot()? {
-                if client.minimal_slot == base_slot && client.maximal_slot == tip_slot {
+                if client.minimal_slot == base_slot && client.maximal_slot <= tip_slot {
                     return Ok(client);
                 }
                 return Err(eyre!(
