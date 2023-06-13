@@ -1,13 +1,19 @@
-use ckb_sdk::constants::TYPE_ID_CODE_HASH;
-use ckb_types::core::{ScriptHashType, TransactionView};
+use ckb_types::core::{ScriptHashType, TransactionView, DepType};
 use ckb_types::packed::{CellDep, Script};
-use ckb_types::prelude::{Builder, Entity, Pack, Reader};
+use ckb_types::prelude::{Builder, Entity, Pack};
 use consensus::rpc::ConsensusRpc;
 use consensus::ConsensusClient;
 use eth2_types::MainnetEthSpec;
 use eth_light_client_in_ckb_prover::CachedBeaconBlock;
 use eth_light_client_in_ckb_verification::mmr;
-use eth_light_client_in_ckb_verification::types::{core, packed, prelude::Unpack as LcUnpack};
+use eth_light_client_in_ckb_verification::types::{
+    packed::{
+        Client as PackedClient,
+        ClientInfo as PackedClientInfo,
+    },
+    core::{ self, ClientTypeArgs, Client },
+    prelude::{ Pack as LcPack, Unpack as LcUnpack },
+};
 use ethers::types::{Transaction, TransactionReceipt};
 use eyre::Result;
 use storage::prelude::StorageAsMMRStore as _;
@@ -20,51 +26,61 @@ pub struct ForcerelayAssembler<R: CkbRpc> {
     binary_celldep: CellDep,
     pub binary_typeid_script: Script,
     pub lightclient_typescript: Script,
+    lightclient_client_type_args: ClientTypeArgs,
 }
 
 impl<R: CkbRpc> ForcerelayAssembler<R> {
     pub fn new(
         rpc: R,
-        contract_typeargs: &Vec<u8>,
-        binary_typeargs: &Vec<u8>,
-        client_id: &str,
+        lightclient_contract_typeargs: &[u8],
+        lightclient_client_type_args: ClientTypeArgs,
+        binary_typeargs: &[u8],
     ) -> Self {
-        let contract_typeid_script = Script::new_builder()
-            .code_hash(TYPE_ID_CODE_HASH.pack())
-            .args(contract_typeargs.pack())
-            .hash_type(ScriptHashType::Type.into())
-            .build();
-        let binary_typeid_script = Script::new_builder()
-            .code_hash(TYPE_ID_CODE_HASH.pack())
-            .args(binary_typeargs.pack())
-            .hash_type(ScriptHashType::Type.into())
-            .build();
-        let contract_typeid = contract_typeid_script.calc_script_hash();
-        let lightclient_typescript = Script::new_builder()
-            .code_hash(contract_typeid)
-            .args(client_id.as_bytes().to_vec().pack())
-            .hash_type(ScriptHashType::Type.into())
-            .build();
+        let contract_typeid_script = make_typeid_script(lightclient_contract_typeargs);
+        let binary_typeid_script = make_typeid_script(binary_typeargs);
+
+        let lightclient_typescript = {
+            let contract_hash = contract_typeid_script.calc_script_hash();
+            Script::new_builder()
+                .code_hash(contract_hash)
+                .args(lightclient_client_type_args.pack().as_slice().pack())
+                .hash_type(ScriptHashType::Type.into())
+                .build()
+        };
         Self {
             rpc,
             binary_celldep: CellDep::default(),
             binary_typeid_script,
             lightclient_typescript,
+            lightclient_client_type_args,
         }
     }
 
-    pub async fn fetch_onchain_packed_client(&self) -> Result<Option<(core::Client, CellDep)>> {
-        match search_cell(&self.rpc, &self.lightclient_typescript).await? {
-            Some(cell) => {
-                if packed::ClientReader::verify(&cell.output_data, false).is_err() {
-                    return Err(eyre::eyre!("unsupported lightlient data"));
+    pub async fn fetch_onchain_latest_client(&self) -> Result<Option<(Client, CellDep)>> {
+        let Some((client_cells, client_info_cell)) = fetch_multi_client_cells(
+            &self.rpc,
+            &self.lightclient_typescript,
+            &self.lightclient_client_type_args,
+        ).await?
+        else {
+            return Ok(None)
+        };
+        let client_info = PackedClientInfo::new_unchecked(client_info_cell.output_data).unpack();
+        let ret = client_cells
+            .iter()
+            .find_map(|cell| {
+                let client = PackedClient::new_unchecked(cell.output_data.clone());
+                if client.id() == client_info.last_id.into() {
+                    let celldep = CellDep::new_builder()
+                        .out_point(cell.out_point.clone())
+                        .dep_type(DepType::Code.into())
+                        .build();
+                    Some((client.unpack(), celldep))
+                } else {
+                    None
                 }
-                let packed_client = packed::Client::new_unchecked(cell.output_data);
-                let celldep = CellDep::new_builder().out_point(cell.out_point).build();
-                Ok(Some((packed_client.unpack(), celldep)))
-            }
-            None => Ok(None),
-        }
+            });
+        Ok(ret)
     }
 
     pub async fn update_binary_celldep(&mut self) -> Result<()> {

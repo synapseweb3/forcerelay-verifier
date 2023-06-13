@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use config::networks::Network;
+use config::ClientTypeArgs;
 use ethers::prelude::{Address, U256};
 use ethers::types::{Filter, Log, Transaction, TransactionReceipt, H256};
 use eyre::{eyre, Result};
@@ -26,6 +27,7 @@ pub struct ClientBuilder {
     execution_rpc: Option<String>,
     ckb_rpc: Option<String>,
     lightclient_contract_typeargs: Option<Vec<u8>>,
+    lightclient_client_type_args: Option<ClientTypeArgs>,
     lightclient_binary_typeargs: Option<Vec<u8>>,
     ibc_client_id: Option<String>,
     checkpoint: Option<Vec<u8>>,
@@ -66,6 +68,11 @@ impl ClientBuilder {
         let typeargs = hex::decode(typeargs.strip_prefix("0x").unwrap_or(typeargs))
             .expect("cannot parse lightclient");
         self.lightclient_contract_typeargs = Some(typeargs);
+        self
+    }
+
+    pub fn lightclient_client_type_args(mut self, client_type_args: ClientTypeArgs) -> Self {
+        self.lightclient_client_type_args = Some(client_type_args);
         self
     }
 
@@ -159,7 +166,17 @@ impl ClientBuilder {
             } else if let Some(config) = &self.config {
                 config.lightclient_contract_typeargs.clone()
             } else {
+                // TODO: isn't this field mandatory?
                 vec![0u8; 32]
+            };
+
+        let lightclient_client_type_args =
+            if let Some(typeargs) = self.lightclient_client_type_args {
+                typeargs
+            } else if let Some(config) = &self.config {
+                config.lightclient_client_type_args.clone()
+            } else {
+                panic!("missing lightclient_client_type_args")
             };
 
         let lightclient_binary_typeargs = if let Some(typeargs) = self.lightclient_binary_typeargs {
@@ -167,6 +184,7 @@ impl ClientBuilder {
         } else if let Some(config) = &self.config {
             config.lightclient_binary_typeargs.clone()
         } else {
+            // TODO: isn't this field mandatory?
             vec![0u8; 32]
         };
 
@@ -227,6 +245,7 @@ impl ClientBuilder {
             execution_rpc,
             ckb_rpc,
             lightclient_contract_typeargs,
+            lightclient_client_type_args,
             lightclient_binary_typeargs,
             ckb_ibc_client_id: client_id,
             checkpoint,

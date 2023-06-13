@@ -12,7 +12,7 @@ serde_json = "1.0.85"
 hex = "0.4.3"
 ssz-rs = { git = "https://github.com/ralexstokes/ssz-rs", rev = "cb08f18ca919cc1b685b861d0fa9e2daabe89737" }
 blst = "0.3.10"
-ethers = "1.0.2"
+ethers = "2.0.7"
 bytes = "1.2.1"
 toml = "0.5.9"
 async-trait = "0.1.57"
@@ -30,7 +30,8 @@ types = { path = "../types" }
 storage = { path = "../storage" }
 eth2_types = { git = "https://github.com/synapseweb3/lighthouse", rev = "2c246d6", package = "types" }
 tree_hash = { version = "0.4.1", git = "https://github.com/synapseweb3/lighthouse", rev = "2c246d6" }
-eth_light_client_in_ckb-verification = { version = "0.1.0", git = "https://github.com/synapseweb3/eth-light-client-in-ckb", rev = "054d9ae" }
+# eth_light_client_in_ckb-verification = { version = "0.1.0", git = "https://github.com/synapseweb3/eth-light-client-in-ckb", rev = "054d9ae" }
+eth_light_client_in_ckb-verification = { version = "0.2.0-alpha", git = "https://github.com/whfuyn/eth-light-client-in-ckb", rev = "6c2760343a42cd1f6074cd11620291da9467b60e" }
 
 [dev-dependencies]
 tempfile = "3.3.0"

@@ -1,22 +1,98 @@
+use ckb_sdk::constants::TYPE_ID_CODE_HASH;
 use ckb_sdk::rpc::ckb_indexer::SearchKey;
 use ckb_sdk::traits::{CellQueryOptions, LiveCell, PrimaryScriptType};
-use ckb_types::core::{DepType, TransactionView};
+use ckb_types::core::{DepType, TransactionView, ScriptHashType};
 use ckb_types::packed::{BytesOpt, CellDep, Script, WitnessArgs};
 use ckb_types::prelude::Pack as _;
 use consensus::types::Header;
 use eth2_types::{BeaconBlockHeader, Hash256, MainnetEthSpec};
 use eth_light_client_in_ckb_prover::{CachedBeaconBlock, Receipts};
 use eth_light_client_in_ckb_verification::types::{core, packed, prelude::*};
+use eth_light_client_in_ckb_verification::types::packed::{
+    ClientInfo as PackedClientInfo,
+    ClientReader as PackedClientReader, ClientInfoReader as PackedClientInfoReader,
+};
+use eth_light_client_in_ckb_verification::types::core::{
+    ClientTypeArgs
+};
 use ethers::types::Transaction;
 use eyre::Result;
 
 use crate::rpc::CkbRpc;
+
+
+pub fn make_typeid_script(type_args: &[u8]) -> Script {
+    Script::new_builder()
+        .code_hash(TYPE_ID_CODE_HASH.0.pack())
+        .hash_type(ScriptHashType::Type.into())
+        .args(type_args.pack())
+        .build()
+}
+
+pub async fn fetch_multi_client_cells<R: CkbRpc>(
+    rpc: &R,
+    typescript: &Script,
+    client_type_args: &ClientTypeArgs,
+) -> Result<Option<(Vec<LiveCell>, LiveCell)>> {
+    let cells_count = client_type_args.cells_count;
+    let cells = search_cells(rpc, typescript, PrimaryScriptType::Type, cells_count as u32).await?;
+
+    // As for the error handling here, the only "allowable" error is that user supply a wrong client type args,
+    // and we can't find any cells for it on chain. Otherwise, it means the on-chain data is corrupted.
+    if cells.is_empty() {
+        return Ok(None);
+    } else if cells.len() != cells_count as usize {
+        panic!(
+            "fetched client cells count not match: expect {}, actual {}",
+            cells_count,
+            cells.len()
+        );
+    }
+
+    let mut client_cells = vec![];
+    let mut client_info_cell_opt = None;
+    for cell in cells {
+        if PackedClientReader::verify(&cell.output_data, false).is_ok() {
+            client_cells.push(cell);
+        } else if PackedClientInfoReader::verify(&cell.output_data, false).is_ok() {
+            let prev = client_info_cell_opt.replace(cell.clone());
+            if prev.is_some() {
+                panic!(
+                    "multi client cell has more than one client info:\nfirst:\n{}\nsecond:\n{}",
+                    PackedClientInfo::new_unchecked(prev.unwrap().output_data).unpack(),
+                    PackedClientInfo::new_unchecked(cell.output_data).unpack(),
+                );
+            }
+        } else {
+            panic!("multi client cell has invalid data: {:?}", cell.output_data);
+        }
+    }
+
+    let Some(client_info_cell) = client_info_cell_opt else {
+        panic!("on-chain data corrupted: client info cell not found");
+    };
+    Ok(Some((client_cells, client_info_cell)))
+}
 
 pub async fn search_cell<R: CkbRpc>(rpc: &R, typescript: &Script) -> Result<Option<LiveCell>> {
     let search: SearchKey =
         CellQueryOptions::new(typescript.clone(), PrimaryScriptType::Type).into();
     let result = rpc.fetch_live_cells(search, 1, None).await?;
     Ok(result.objects.first().cloned().map(Into::into))
+}
+
+pub async fn search_cells<R: CkbRpc>(
+    rpc: &R,
+    script: &Script,
+    script_type: PrimaryScriptType,
+    limit: u32,
+) -> Result<Vec<LiveCell>> {
+    let search: SearchKey = CellQueryOptions::new(script.clone(), script_type).into();
+    let result = rpc
+        .fetch_live_cells(search, limit, None)
+        .await?;
+        // .map_err(|e| Error::rpc_response(e.to_string()))?;
+    Ok(result.objects.into_iter().map(Into::into).collect())
 }
 
 pub async fn search_cell_as_celldep<R: CkbRpc>(
