@@ -63,7 +63,7 @@ impl Node {
             contract_typeargs,
             &client_type_args.type_id,
             client_type_args.cells_count,
-            binary_typeargs
+            binary_typeargs,
         );
 
         Ok(Node {

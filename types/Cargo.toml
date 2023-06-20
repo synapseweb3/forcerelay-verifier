@@ -11,5 +11,4 @@ hex = "0.4.3"
 
 common = { path = "../common" }
 eth2_types = { git = "https://github.com/synapseweb3/lighthouse", rev = "2c246d6", package = "types" }
-# eth_light_client_in_ckb-verification = { version = "0.1.0", git = "https://github.com/synapseweb3/eth-light-client-in-ckb", rev = "054d9ae" }
-eth_light_client_in_ckb-verification = { version = "0.2.0-alpha", git = "https://github.com/whfuyn/eth-light-client-in-ckb", rev = "6c2760343a42cd1f6074cd11620291da9467b60e" }
+eth_light_client_in_ckb-verification = { version = "0.2.1", git = "https://github.com/synapseweb3/eth-light-client-in-ckb", tag = "v0.2.1" }

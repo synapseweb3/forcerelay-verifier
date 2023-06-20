@@ -5,7 +5,7 @@ use consensus::ConsensusClient;
 use eth2_types::MainnetEthSpec;
 use eth_light_client_in_ckb_prover::CachedBeaconBlock;
 use eth_light_client_in_ckb_verification::types::core::{
-    Hash, Client as OnChainClient, ClientTypeArgs,
+    Client as OnChainClient, ClientTypeArgs, Hash,
 };
 use ethers::types::{Transaction, TransactionReceipt};
 use eyre::{eyre, Result};
@@ -30,10 +30,12 @@ impl<R: CkbRpc> ForcerelayClient<R> {
             type_id: Hash::from_slice(lightclient_client_type_args_type_id),
             cells_count: lightclient_client_type_args_cells_count,
         };
-        let assembler =
-            ForcerelayAssembler::new(
-                rpc, lightclient_contract_typeargs, lightclient_client_type_args, binary_typeargs
-            );
+        let assembler = ForcerelayAssembler::new(
+            rpc,
+            lightclient_contract_typeargs,
+            lightclient_client_type_args,
+            binary_typeargs,
+        );
         Self { assembler }
     }
 

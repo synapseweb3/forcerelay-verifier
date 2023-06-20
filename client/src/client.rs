@@ -170,14 +170,14 @@ impl ClientBuilder {
                 vec![0u8; 32]
             };
 
-        let lightclient_client_type_args =
-            if let Some(typeargs) = self.lightclient_client_type_args {
-                typeargs
-            } else if let Some(config) = &self.config {
-                config.lightclient_client_type_args.clone()
-            } else {
-                panic!("missing lightclient_client_type_args")
-            };
+        let lightclient_client_type_args = if let Some(typeargs) = self.lightclient_client_type_args
+        {
+            typeargs
+        } else if let Some(config) = &self.config {
+            config.lightclient_client_type_args.clone()
+        } else {
+            panic!("missing lightclient_client_type_args")
+        };
 
         let lightclient_binary_typeargs = if let Some(typeargs) = self.lightclient_binary_typeargs {
             typeargs

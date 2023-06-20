@@ -1,25 +1,22 @@
 use ckb_sdk::constants::TYPE_ID_CODE_HASH;
 use ckb_sdk::rpc::ckb_indexer::SearchKey;
 use ckb_sdk::traits::{CellQueryOptions, LiveCell, PrimaryScriptType};
-use ckb_types::core::{DepType, TransactionView, ScriptHashType};
+use ckb_types::core::{DepType, ScriptHashType, TransactionView};
 use ckb_types::packed::{BytesOpt, CellDep, Script, WitnessArgs};
 use ckb_types::prelude::Pack as _;
 use consensus::types::Header;
 use eth2_types::{BeaconBlockHeader, Hash256, MainnetEthSpec};
 use eth_light_client_in_ckb_prover::{CachedBeaconBlock, Receipts};
-use eth_light_client_in_ckb_verification::types::{core, packed, prelude::*};
+use eth_light_client_in_ckb_verification::types::core::ClientTypeArgs;
 use eth_light_client_in_ckb_verification::types::packed::{
-    ClientInfo as PackedClientInfo,
-    ClientReader as PackedClientReader, ClientInfoReader as PackedClientInfoReader,
+    ClientInfo as PackedClientInfo, ClientInfoReader as PackedClientInfoReader,
+    ClientReader as PackedClientReader,
 };
-use eth_light_client_in_ckb_verification::types::core::{
-    ClientTypeArgs
-};
+use eth_light_client_in_ckb_verification::types::{core, packed, prelude::*};
 use ethers::types::Transaction;
 use eyre::Result;
 
 use crate::rpc::CkbRpc;
-
 
 pub fn make_typeid_script(type_args: &[u8]) -> Script {
     Script::new_builder()
@@ -88,10 +85,8 @@ pub async fn search_cells<R: CkbRpc>(
     limit: u32,
 ) -> Result<Vec<LiveCell>> {
     let search: SearchKey = CellQueryOptions::new(script.clone(), script_type).into();
-    let result = rpc
-        .fetch_live_cells(search, limit, None)
-        .await?;
-        // .map_err(|e| Error::rpc_response(e.to_string()))?;
+    let result = rpc.fetch_live_cells(search, limit, None).await?;
+    // .map_err(|e| Error::rpc_response(e.to_string()))?;
     Ok(result.objects.into_iter().map(Into::into).collect())
 }
 

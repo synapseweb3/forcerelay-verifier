@@ -1,4 +1,4 @@
-use ckb_types::core::{ScriptHashType, TransactionView, DepType};
+use ckb_types::core::{DepType, ScriptHashType, TransactionView};
 use ckb_types::packed::{CellDep, Script};
 use ckb_types::prelude::{Builder, Entity, Pack};
 use consensus::rpc::ConsensusRpc;
@@ -7,12 +7,9 @@ use eth2_types::MainnetEthSpec;
 use eth_light_client_in_ckb_prover::CachedBeaconBlock;
 use eth_light_client_in_ckb_verification::mmr;
 use eth_light_client_in_ckb_verification::types::{
-    packed::{
-        Client as PackedClient,
-        ClientInfo as PackedClientInfo,
-    },
-    core::{ self, ClientTypeArgs, Client },
-    prelude::{ Pack as LcPack, Unpack as LcUnpack },
+    core::{self, Client, ClientTypeArgs},
+    packed::{Client as PackedClient, ClientInfo as PackedClientInfo},
+    prelude::{Pack as LcPack, Unpack as LcUnpack},
 };
 use ethers::types::{Transaction, TransactionReceipt};
 use eyre::Result;
@@ -66,20 +63,18 @@ impl<R: CkbRpc> ForcerelayAssembler<R> {
             return Ok(None)
         };
         let client_info = PackedClientInfo::new_unchecked(client_info_cell.output_data).unpack();
-        let ret = client_cells
-            .iter()
-            .find_map(|cell| {
-                let client = PackedClient::new_unchecked(cell.output_data.clone());
-                if client.id() == client_info.last_id.into() {
-                    let celldep = CellDep::new_builder()
-                        .out_point(cell.out_point.clone())
-                        .dep_type(DepType::Code.into())
-                        .build();
-                    Some((client.unpack(), celldep))
-                } else {
-                    None
-                }
-            });
+        let ret = client_cells.iter().find_map(|cell| {
+            let client = PackedClient::new_unchecked(cell.output_data.clone());
+            if client.id() == client_info.last_id.into() {
+                let celldep = CellDep::new_builder()
+                    .out_point(cell.out_point.clone())
+                    .dep_type(DepType::Code.into())
+                    .build();
+                Some((client.unpack(), celldep))
+            } else {
+                None
+            }
+        });
         Ok(ret)
     }
 
