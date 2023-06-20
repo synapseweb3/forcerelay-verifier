@@ -48,8 +48,8 @@ impl Node {
         let execution_rpc = &config.execution_rpc;
         let ckb_rpc = &config.ckb_rpc;
         let contract_typeargs = &config.lightclient_contract_typeargs;
+        let client_type_args = &config.lightclient_client_type_args;
         let binary_typeargs = &config.lightclient_binary_typeargs;
-        let client_id = &config.ckb_ibc_client_id;
 
         let consensus = ConsensusClient::new(consensus_rpc, checkpoint_hash, config.clone())
             .map_err(NodeError::ConsensusClientCreationError)?;
@@ -58,7 +58,13 @@ impl Node {
         );
 
         let rpc = RpcClient::new(ckb_rpc, ckb_rpc);
-        let forcerelay = ForcerelayClient::new(rpc, contract_typeargs, binary_typeargs, client_id);
+        let forcerelay = ForcerelayClient::new(
+            rpc,
+            contract_typeargs,
+            &client_type_args.type_id,
+            client_type_args.cells_count,
+            binary_typeargs,
+        );
 
         Ok(Node {
             consensus,

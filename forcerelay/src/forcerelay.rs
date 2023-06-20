@@ -4,7 +4,9 @@ use consensus::rpc::ConsensusRpc;
 use consensus::ConsensusClient;
 use eth2_types::MainnetEthSpec;
 use eth_light_client_in_ckb_prover::CachedBeaconBlock;
-use eth_light_client_in_ckb_verification::types::core::Client as OnChainClient;
+use eth_light_client_in_ckb_verification::types::core::{
+    Client as OnChainClient, ClientTypeArgs, Hash,
+};
 use ethers::types::{Transaction, TransactionReceipt};
 use eyre::{eyre, Result};
 use storage::prelude::StorageReader;
@@ -19,17 +21,26 @@ pub struct ForcerelayClient<R: CkbRpc> {
 impl<R: CkbRpc> ForcerelayClient<R> {
     pub fn new(
         rpc: R,
-        contract_typeargs: &Vec<u8>,
-        binary_typeargs: &Vec<u8>,
-        client_id: &str,
+        lightclient_contract_typeargs: &[u8],
+        lightclient_client_type_args_type_id: &[u8],
+        lightclient_client_type_args_cells_count: u8,
+        binary_typeargs: &[u8],
     ) -> Self {
-        let assembler =
-            ForcerelayAssembler::new(rpc, contract_typeargs, binary_typeargs, client_id);
+        let lightclient_client_type_args = ClientTypeArgs {
+            type_id: Hash::from_slice(lightclient_client_type_args_type_id),
+            cells_count: lightclient_client_type_args_cells_count,
+        };
+        let assembler = ForcerelayAssembler::new(
+            rpc,
+            lightclient_contract_typeargs,
+            lightclient_client_type_args,
+            binary_typeargs,
+        );
         Self { assembler }
     }
 
     pub async fn onchain_client(&self) -> Result<(OnChainClient, CellDep)> {
-        if let Some(client) = self.assembler.fetch_onchain_packed_client().await? {
+        if let Some(client) = self.assembler.fetch_onchain_latest_client().await? {
             Ok(client)
         } else {
             Err(eyre!("no lightclient cell deployed on ckb"))

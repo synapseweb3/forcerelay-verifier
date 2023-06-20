@@ -18,6 +18,7 @@ pub struct Config {
     pub ckb_rpc: String,
     #[serde(deserialize_with = "bytes_deserialize")]
     pub lightclient_contract_typeargs: Vec<u8>,
+    pub lightclient_client_type_args: ClientTypeArgs,
     #[serde(deserialize_with = "bytes_deserialize")]
     pub lightclient_binary_typeargs: Vec<u8>,
     pub ckb_ibc_client_id: String,
@@ -100,4 +101,13 @@ impl Config {
             max_checkpoint_age: self.max_checkpoint_age,
         }
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ClientTypeArgs {
+    // Hash, 32 bytes
+    #[serde(deserialize_with = "bytes_deserialize")]
+    pub type_id: Vec<u8>,
+    // Number of client cells, plus one info cell
+    pub cells_count: u8,
 }
